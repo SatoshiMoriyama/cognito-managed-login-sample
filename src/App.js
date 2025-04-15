@@ -16,12 +16,20 @@ import {
   CardContent,
   ThemeProvider,
   createTheme,
-  CssBaseline
+  CssBaseline,
+  Tabs,
+  Tab
 } from '@mui/material';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import InfoIcon from '@mui/icons-material/Info';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+
+// 新規ユーザー作成コンポーネントのインポート
+import CreateUser from './CreateUser';
+// 管理者判定ヘルパーのインポート
+import { isAdmin } from './isAdmin';
 
 // カスタムテーマの作成
 const theme = createTheme({
@@ -53,6 +61,8 @@ function App() {
   const [error, setError] = useState('');
   const [tokens, setTokens] = useState(null);
   const [showToken, setShowToken] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   // 認証状態をチェックする
   useEffect(() => {
@@ -67,10 +77,17 @@ function App() {
       try {
         const attributes = await fetchUserAttributes();
         const session = await fetchAuthSession();
-        setUser({ 
+        
+        const userData = { 
           username: currentUser.username,
           attributes
-        });
+        };
+        
+        setUser(userData);
+        
+        // 管理者かどうかチェック
+        setIsUserAdmin(isAdmin(userData));
+        
         // トークン情報を保存
         if (session && session.tokens) {
           setTokens({
@@ -131,12 +148,18 @@ function App() {
       await signOut();
       setUser(null);
       setIsAuthenticated(false);
+      setIsUserAdmin(false);
       console.log('サインアウト成功');
     } catch (err) {
       console.error('サインアウトエラー:', err);
       setError(`サインアウトエラー: ${err.message}`);
     }
   }
+
+  // タブ切り替え処理
+  const handleChangeTab = (event, newValue) => {
+    setActiveTab(newValue);
+  };
 
   if (loading) {
     return (
@@ -232,91 +255,130 @@ function App() {
               </Box>
             </Paper>
           ) : (
-            <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-              <Box textAlign="center">
-                <Typography variant="h5" gutterBottom>
-                  ようこそ！
-                </Typography>
-                
-                <Card sx={{ mt: 3, mb: 4, textAlign: 'left' }}>
-                  <CardContent>
-                    <Typography variant="h6" color="primary" gutterBottom>
-                      <AccountCircleIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-                      ユーザー情報
-                    </Typography>
-                    <List>
-                      <ListItem>
-                        <ListItemText
-                          primary="ユーザーID"
-                          secondary={user.username}
-                        />
-                      </ListItem>
-                      {user.attributes.email && (
-                        <ListItem>
-                          <ListItemText
-                            primary="メールアドレス"
-                            secondary={user.attributes.email}
-                          />
-                        </ListItem>
+            <>
+              <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+                <Box textAlign="center">
+                  <Typography variant="h5" gutterBottom>
+                    ようこそ！{isUserAdmin && ' (管理者ユーザー)'}
+                  </Typography>
+                  
+                  {/* タブナビゲーション - 管理者のみユーザー作成タブ表示 */}
+                  <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                    <Tabs 
+                      value={activeTab} 
+                      onChange={handleChangeTab} 
+                      centered
+                    >
+                      <Tab label="ユーザー情報" icon={<AccountCircleIcon />} iconPosition="start" />
+                      {isUserAdmin && (
+                        <Tab label="ユーザー作成" icon={<PersonAddIcon />} iconPosition="start" />
                       )}
-                      {user.attributes.name && (
-                        <ListItem>
-                          <ListItemText
-                            primary="名前"
-                            secondary={user.attributes.name}
-                          />
-                        </ListItem>
-                      )}
-                    </List>
-                    
-                    {tokens && (
-                      <Box mt={2}>
-                        <Typography variant="subtitle1" color="primary" gutterBottom>
-                          認証トークン
+                    </Tabs>
+                  </Box>
+                  
+                  {/* タブコンテンツ */}
+                  {activeTab === 0 && (
+                    <Card sx={{ mt: 3, mb: 4, textAlign: 'left' }}>
+                      <CardContent>
+                        <Typography variant="h6" color="primary" gutterBottom>
+                          <AccountCircleIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                          ユーザー情報
                         </Typography>
-                        <Button 
-                          variant="outlined" 
-                          size="small" 
-                          onClick={() => setShowToken(!showToken)}
-                          sx={{ mb: 1 }}
-                        >
-                          {showToken ? 'トークンを隠す' : 'IDトークンを表示'}
-                        </Button>
+                        <List>
+                          {/* ユーザーIDは常に表示 */}
+                          <ListItem>
+                            <ListItemText
+                              primary="ユーザーID"
+                              secondary={user.username}
+                            />
+                          </ListItem>
+                          
+                          {/* ユーザー種別の表示 */}
+                          <ListItem>
+                            <ListItemText
+                              primary="ユーザー種別"
+                              secondary={isUserAdmin ? '管理者' : '一般ユーザー'}
+                            />
+                          </ListItem>
+                          
+                          {/* 全ての属性を動的に表示 */}
+                          <ListItem>
+                            <ListItemText
+                              primary="属性情報"
+                            />
+                          </ListItem>
+                          
+                          {/* 属性を動的に一覧表示 */}
+                          {user.attributes && Object.entries(user.attributes).map(([key, value]) => (
+                            <ListItem key={key} sx={{ pl: 4 }}>
+                              <ListItemText
+                                primary={key}
+                                secondary={value}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
                         
-                        {showToken && (
-                          <Box 
-                            sx={{ 
-                              mt: 1, 
-                              p: 2, 
-                              bgcolor: '#f0f0f0', 
-                              borderRadius: 1,
-                              overflowX: 'auto',
-                              fontSize: '0.75rem'
-                            }}
-                          >
-                            <Typography variant="caption" component="div" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                              ID Token:
+                        {tokens && (
+                          <Box mt={2}>
+                            <Typography variant="subtitle1" color="primary" gutterBottom>
+                              認証トークン
                             </Typography>
-                            <Box component="pre" sx={{ m: 0, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
-                              {tokens.idToken.toString()}
-                            </Box>
+                            <Button 
+                              variant="outlined" 
+                              size="small" 
+                              onClick={() => setShowToken(!showToken)}
+                              sx={{ mb: 1 }}
+                            >
+                              {showToken ? 'トークンを隠す' : 'IDトークンを表示'}
+                            </Button>
+                            
+                            {showToken && (
+                              <Box 
+                                sx={{ 
+                                  mt: 1, 
+                                  p: 2, 
+                                  bgcolor: '#f0f0f0', 
+                                  borderRadius: 1,
+                                  overflowX: 'auto',
+                                  fontSize: '0.75rem'
+                                }}
+                              >
+                                <Typography variant="caption" component="div" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                                  ID Token:
+                                </Typography>
+                                <Box component="pre" sx={{ m: 0, wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
+                                  {tokens.idToken.toString()}
+                                </Box>
+                              </Box>
+                            )}
                           </Box>
                         )}
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-                
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  startIcon={<LogoutIcon />}
-                  onClick={handleSignOut}
-                >
-                  サインアウト
-                </Button>
-              </Box>
-            </Paper>
+                      </CardContent>
+                    </Card>
+                  )}
+                  
+                  {/* 管理者用ユーザー作成タブ */}
+                  {activeTab === 1 && isUserAdmin && <CreateUser />}
+                  
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    startIcon={<LogoutIcon />}
+                    onClick={handleSignOut}
+                  >
+                    サインアウト
+                  </Button>
+                </Box>
+              </Paper>
+              
+              {/* 管理者以外のユーザーへの通知 */}
+              {!isUserAdmin && (
+                <Alert severity="info" sx={{ mt: 3 }}>
+                  ユーザー作成機能は管理者のみが利用できます。あなたは一般ユーザーとしてログインしています。
+                </Alert>
+              )}
+            </>
           )}
         </Box>
       </Container>

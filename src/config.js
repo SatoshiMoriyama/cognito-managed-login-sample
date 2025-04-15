@@ -6,7 +6,7 @@ const config = {
     userPoolWebClientId: process.env.REACT_APP_USER_POOL_WEB_CLIENT_ID,
     oauth: {
       domain: process.env.REACT_APP_COGNITO_DOMAIN,
-      scope: ['email', 'openid', 'aws.cognito.signin.user.admin'],
+      scope: ['email', 'openid', 'aws.cognito.signin.user.admin', 'profile'],
       redirectSignIn: process.env.REACT_APP_REDIRECT_SIGN_IN,
       redirectSignOut: process.env.REACT_APP_REDIRECT_SIGN_OUT,
       responseType: 'code' // authorization codeグラントタイプを使用
